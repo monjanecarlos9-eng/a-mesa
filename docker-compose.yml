@@ -1,0 +1,60 @@
+# À Mesa — os 3 serviços, cada um no seu contentor:
+#   web  → front-end (React servido pelo nginx)   http://localhost:8080
+#   api  → back-end (Express + Socket.IO)          http://localhost:4000/api/saude
+#   db   → base de dados (PostgreSQL)
+#
+# Arrancar tudo numa máquina limpa, com dados de exemplo:  docker compose up --build
+# Apagar também os dados:                                  docker compose down -v
+#
+# ATENÇÃO: estes valores são só para correr localmente. No deploy usa segredos verdadeiros (ver README).
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: amesa
+      POSTGRES_PASSWORD: amesa_local
+      POSTGRES_DB: a_mesa
+    volumes:
+      - dados_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U amesa -d a_mesa']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    # Sem "ports": a base de dados só é acessível pela rede interna do compose
+
+  api:
+    build: ./server
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://amesa:amesa_local@db:5432/a_mesa?schema=public
+      JWT_SECRET: ${JWT_SECRET:-so-para-docker-local-troca-isto-em-producao-0123456789}
+      FRONTEND_URL: http://localhost:8080
+      TRUST_PROXY: '1' # o nginx do contentor "web" está à frente
+      SEED_DEMO: '1' # cria as contas de teste (admin / cozinha) e vendas de exemplo
+      TZ: Europe/Lisbon
+    volumes:
+      - uploads:/app/uploads
+    ports:
+      - '4000:4000'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:4000/api/saude').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  web:
+    build: ./client
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '8080:80'
+
+volumes:
+  dados_db:
+  uploads:
