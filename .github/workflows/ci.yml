@@ -1,0 +1,98 @@
+# CI: lint + testes em cada Pull Request (e em cada push para a main)
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-e-testes:
+    name: Lint, tipos e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Instalar dependências
+        run: |
+          npm ci
+          npm ci --prefix server
+          npm ci --prefix client
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Verificar tipos (TypeScript)
+        run: |
+          (cd server && npx tsc --noEmit)
+          (cd client && npx tsc)
+
+      - name: Testes do front-end (Vitest)
+        run: npm run test:frontend
+
+      - name: Testes do back-end (API real + PostgreSQL)
+        run: npm run test:backend
+        env:
+          TESTES_PG_URL: postgresql://postgres:postgres@localhost:5432
+
+      - name: Build de produção
+        run: npm run build
+
+  docker:
+    name: docker compose up
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Arrancar os 3 serviços
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: Verificar site, API e dados de exemplo
+        run: |
+          curl -fsS http://localhost:8080/ | grep -q '<div id="root">'
+          curl -fsS http://localhost:8080/api/saude
+          curl -fsS http://localhost:8080/api/menu | grep -q 'Bacalhau'
+          curl -fsS -X POST http://localhost:8080/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@tascadoze.pt","password":"admin123"}' | grep -q '"token"'
+
+      - name: Registos (se falhar)
+        if: failure()
+        run: docker compose logs
+
+      - name: Parar
+        if: always()
+        run: docker compose down -v
