@@ -1,0 +1,293 @@
+############################################################################
+# À Mesa — documentação da API REST
+#
+# Como usar: abrir no VS Code com a extensão "REST Client" (humao.rest-client)
+# e carregar em "Send Request" por cima de cada pedido, de cima para baixo.
+# (O IntelliJ/WebStorm também abre ficheiros .http.)
+#
+# Formato geral
+#   - Pedidos e respostas em JSON (Content-Type: application/json)
+#   - Rotas da equipa: cabeçalho  Authorization: Bearer <token JWT>
+#   - Erros: { "erro": "mensagem legível" } com o código HTTP adequado:
+#       400 dados inválidos · 401 sem sessão · 403 sem permissão · 404 não existe
+#       409 conflito (ex.: email repetido) · 413 pedido grande demais · 429 demasiadas tentativas
+#   - Tempo real (Socket.IO, mesmo endereço): novo_pedido, estado_atualizado,
+#     chamar_empregado, menu_atualizado, conta_pendente
+############################################################################
+
+@base = http://localhost:4000/api
+# Com o docker compose também funciona: http://localhost:8080/api
+
+### Saúde da API (para monitorização / healthcheck)
+GET {{base}}/saude
+
+
+############################################################################
+# 1. AUTENTICAÇÃO
+############################################################################
+
+### Login (admin de demonstração) — devolve { token, utilizador }
+# @name login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@tascadoze.pt", "password": "admin123" }
+
+@token = {{login.response.body.token}}
+
+### Quem sou eu (valida a sessão)
+GET {{base}}/auth/eu
+Authorization: Bearer {{token}}
+
+### Configuração inicial: { primeiraConta, exigeCodigo }
+GET {{base}}/auth/configuracao
+
+### Criar conta — fica pendente até um admin aprovar (a 1.ª conta do sistema fica admin)
+# Senha: 8 a 72 caracteres, com letras e números. Em produção, a 1.ª conta exige "codigo".
+POST {{base}}/auth/registar
+Content-Type: application/json
+
+{ "nome": "Ana Silva", "email": "ana@exemplo.pt", "password": "Segura123" }
+
+### Recuperar senha — responde sempre igual (não revela se o email existe)
+POST {{base}}/auth/recuperar
+Content-Type: application/json
+
+{ "email": "ana@exemplo.pt" }
+
+### Verificar se um link de recuperação é válido
+GET {{base}}/auth/redefinir/TOKEN_DO_EMAIL
+
+### Definir nova senha com o token do email (termina todas as sessões dessa conta)
+POST {{base}}/auth/redefinir
+Content-Type: application/json
+
+{ "token": "TOKEN_DO_EMAIL", "password": "NovaSenha123" }
+
+### Mudar a própria senha — devolve um token novo
+POST {{base}}/auth/alterar-senha
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "atual": "admin123", "nova": "admin123" }
+
+### Logout — este token deixa de ser aceite (as outras sessões continuam)
+# (Fica no fim para não estragar os pedidos abaixo; ver a secção 8.)
+
+
+############################################################################
+# 2. MENU E MESA (público — o cliente não faz login)
+############################################################################
+
+### Menu completo: categorias com pratos (nome/descrição em PT e EN, alergénios, esgotado)
+GET {{base}}/menu
+
+### Lista das mesas (admin) — para obter o token de QR de uma mesa
+# @name mesas
+GET {{base}}/mesas
+Authorization: Bearer {{token}}
+
+@mesaToken = {{mesas.response.body.$[0].qrToken}}
+
+### Dados da mesa a partir do token do QR code
+GET {{base}}/mesas/{{mesaToken}}
+
+### Chamar o empregado (limitado por mesa)
+POST {{base}}/mesas/{{mesaToken}}/chamar
+
+
+############################################################################
+# 3. PEDIDOS
+############################################################################
+
+### Cliente envia um pedido (os preços vêm SEMPRE da base de dados)
+# @name pedido
+POST {{base}}/pedidos
+Content-Type: application/json
+
+{
+  "token": "{{mesaToken}}",
+  "itens": [
+    { "pratoId": 1, "quantidade": 2, "observacoes": "sem cebola" },
+    { "pratoId": 2, "quantidade": 1 }
+  ]
+}
+
+@pedidoId = {{pedido.response.body.id}}
+
+### Cliente acompanha o estado do pedido (precisa do token da mesa)
+GET {{base}}/pedidos/{{pedidoId}}?token={{mesaToken}}
+
+### Pagamento SIMULADO — só aceita { token, metodo }; dados de cartão são recusados (400)
+POST {{base}}/pedidos/{{pedidoId}}/pagar
+Content-Type: application/json
+
+{ "token": "{{mesaToken}}", "metodo": "mbway" }
+
+### Cozinha: pedidos das últimas 24 h (filtro opcional por estado)
+GET {{base}}/pedidos?estado=pendente,em_preparacao,pronto
+Authorization: Bearer {{token}}
+
+### Cozinha: mudar o estado — pendente | em_preparacao | pronto | entregue
+PATCH {{base}}/pedidos/{{pedidoId}}/estado
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "estado": "em_preparacao" }
+
+
+############################################################################
+# 4. PRATOS (admin)
+############################################################################
+
+### Listar todos os pratos (incluindo esgotados)
+GET {{base}}/pratos
+Authorization: Bearer {{token}}
+
+### Criar prato
+# alergenios: gluten, crustaceos, ovos, peixe, amendoins, soja, leite, frutos_casca_rija,
+#             aipo, mostarda, sesamo, sulfitos, tremoco, moluscos
+# @name prato
+POST {{base}}/pratos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "categoriaId": 1,
+  "nome": "Sopa da casa",
+  "nomeEn": "House soup",
+  "descricao": "Legumes da época",
+  "preco": 3.5,
+  "vegetariano": true,
+  "semGluten": true,
+  "alergenios": ["aipo"]
+}
+
+@pratoId = {{prato.response.body.id}}
+
+### Editar prato (só os campos enviados mudam)
+PUT {{base}}/pratos/{{pratoId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "preco": 3.8 }
+
+### Marcar como esgotado / disponível
+PATCH {{base}}/pratos/{{pratoId}}/disponivel
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "disponivel": false }
+
+### Apagar prato (se já tiver pedidos, a API responde 409: marca-o como esgotado)
+DELETE {{base}}/pratos/{{pratoId}}
+Authorization: Bearer {{token}}
+
+### Carregar foto (JPG, PNG, WEBP ou GIF até 5 MB) — devolve { url }
+POST {{base}}/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=FRONTEIRA
+
+--FRONTEIRA
+Content-Disposition: form-data; name="imagem"; filename="prato.jpg"
+Content-Type: image/jpeg
+
+< ./prato-exemplo.jpg
+--FRONTEIRA--
+
+
+############################################################################
+# 5. CATEGORIAS (admin)
+############################################################################
+
+### Listar categorias
+GET {{base}}/categorias
+Authorization: Bearer {{token}}
+
+### Criar categoria
+# @name categoria
+POST {{base}}/categorias
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "nome": "Sobremesas da avó", "nomeEn": "Grandma's desserts" }
+
+@categoriaId = {{categoria.response.body.id}}
+
+### Renomear categoria
+PUT {{base}}/categorias/{{categoriaId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "nome": "Sobremesas", "nomeEn": "Desserts" }
+
+### Apagar categoria (só se não tiver pratos)
+DELETE {{base}}/categorias/{{categoriaId}}
+Authorization: Bearer {{token}}
+
+
+############################################################################
+# 6. MESAS E QR CODES (admin)
+############################################################################
+
+### Criar mesa
+# @name novaMesa
+POST {{base}}/mesas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "numero": 99 }
+
+@novaMesaId = {{novaMesa.response.body.id}}
+
+### Mudar o número da mesa
+PUT {{base}}/mesas/{{novaMesaId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "numero": 98 }
+
+### Gerar um QR code novo (o antigo deixa de funcionar)
+POST {{base}}/mesas/{{novaMesaId}}/regenerar
+Authorization: Bearer {{token}}
+
+### Apagar mesa
+DELETE {{base}}/mesas/{{novaMesaId}}
+Authorization: Bearer {{token}}
+
+
+############################################################################
+# 7. EQUIPA E ESTATÍSTICAS (admin)
+############################################################################
+
+### Vendas: hoje, últimos 7 dias, pratos mais vendidos, pagamentos online
+GET {{base}}/estatisticas
+Authorization: Bearer {{token}}
+
+### Listar a equipa (nunca inclui hashes de senhas)
+GET {{base}}/utilizadores
+Authorization: Bearer {{token}}
+
+### Aprovar uma conta pendente e escolher o papel (admin | cozinha)
+PATCH {{base}}/utilizadores/3
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "aprovado": true, "papel": "cozinha" }
+
+### Gerar um link de recuperação de senha para um membro (quando não há email configurado)
+POST {{base}}/utilizadores/3/link-recuperacao
+Authorization: Bearer {{token}}
+
+### Remover membro da equipa (não deixa remover o último admin)
+DELETE {{base}}/utilizadores/3
+Authorization: Bearer {{token}}
+
+
+############################################################################
+# 8. TERMINAR SESSÃO
+############################################################################
+
+### Logout — 204; a seguir, o mesmo token passa a dar 401
+POST {{base}}/auth/sair
+Authorization: Bearer {{token}}
