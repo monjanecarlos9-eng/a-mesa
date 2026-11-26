@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Papel {
+  admin
+  cozinha
+}
+
+enum EstadoPedido {
+  pendente
+  em_preparacao
+  pronto
+  entregue
+}
+
+model Utilizador {
+  id           Int    @id @default(autoincrement())
+  nome         String
+  email        String @unique
+  passwordHash String @map("password_hash")
+  papel        Papel
+
+  @@map("utilizadores")
+}
+
+model Categoria {
+  id     Int     @id @default(autoincrement())
+  nome   String
+  ordem  Int     @default(0)
+  pratos Prato[]
+
+  @@map("categorias")
+}
+
+model Prato {
+  id          Int          @id @default(autoincrement())
+  categoriaId Int          @map("categoria_id")
+  categoria   Categoria    @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  nome        String
+  descricao   String       @default("")
+  preco       Decimal      @db.Decimal(10, 2)
+  imagemUrl   String?      @map("imagem_url")
+  disponivel  Boolean      @default(true)
+  itens       ItemPedido[]
+
+  @@index([categoriaId])
+  @@map("pratos")
+}
+
+model Mesa {
+  id      Int      @id @default(autoincrement())
+  numero  Int      @unique
+  qrToken String   @unique @map("qr_token")
+  pedidos Pedido[]
+
+  @@map("mesas")
+}
+
+model Pedido {
+  id       Int          @id @default(autoincrement())
+  mesaId   Int          @map("mesa_id")
+  mesa     Mesa         @relation(fields: [mesaId], references: [id], onDelete: Restrict)
+  estado   EstadoPedido @default(pendente)
+  total    Decimal      @db.Decimal(10, 2)
+  criadoEm DateTime     @default(now()) @map("criado_em")
+  itens    ItemPedido[]
+
+  @@index([estado])
+  @@index([criadoEm])
+  @@map("pedidos")
+}
+
+model ItemPedido {
+  id            Int     @id @default(autoincrement())
+  pedidoId      Int     @map("pedido_id")
+  pedido        Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  pratoId       Int     @map("prato_id")
+  prato         Prato   @relation(fields: [pratoId], references: [id], onDelete: Restrict)
+  quantidade    Int
+  // Guardado no momento do pedido: se o preço do prato mudar, os pedidos antigos não mudam.
+  precoUnitario Decimal @map("preco_unitario") @db.Decimal(10, 2)
+  observacoes   String?
+
+  @@index([pedidoId])
+  @@map("itens_pedido")
+}

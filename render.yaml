@@ -1,0 +1,33 @@
+# Blueprint do Render: cria a base de dados PostgreSQL e o back-end de uma vez.
+# No Render: New → Blueprint → escolhe este repositório.
+databases:
+  - name: a-mesa-db
+    plan: free
+    databaseName: a_mesa
+
+services:
+  - type: web
+    name: a-mesa-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /api/saude
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: a-mesa-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: TZ
+        value: Europe/Lisbon
+      # URL do front-end no Vercel (ex.: https://tasca-do-ze.vercel.app)
+      - key: FRONTEND_URL
+        sync: false
+      # Opcional, mas recomendado: o disco do Render apaga-se a cada deploy
+      - key: CLOUDINARY_URL
+        sync: false
