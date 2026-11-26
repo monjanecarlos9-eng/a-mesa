@@ -365,19 +365,21 @@ Os erros vêm sempre como `{ "erro": "mensagem legível" }` com o código HTTP c
 
 ## Deploy
 
-**Back-end e base de dados (Render)**
-1. Põe o projeto no GitHub.
-2. No Render: **New → Blueprint** e escolhe o repositório. O `render.yaml` cria a base de dados e a API, e gera o `JWT_SECRET`.
-3. O Render gera o `JWT_SECRET` e o `CODIGO_CONFIGURACAO`. Define `FRONTEND_URL` (o URL do Vercel, obrigatório), `SMTP_URL` (para os emails de recuperação) e, de preferência, `CLOUDINARY_URL` (o disco do Render apaga-se a cada deploy).
-4. Na **Shell** do serviço, corre `npm run db:seed` para criar o menu e as mesas. Em produção não são criadas contas.
-5. Abre o site, vai a **Criar conta** e usa o `CODIGO_CONFIGURACAO` (vês o valor em Render → Environment). Essa conta fica admin.
+Tudo no **Render**, com um só Blueprint ([render.yaml](render.yaml)) que cria os 3 serviços: base de dados, API e site.
 
-**Front-end (Vercel)**
-1. **Add New → Project**, escolhe o repositório e define o **Root Directory** como `client`.
-2. Variável de ambiente: `VITE_API_URL=https://a-mesa-api.onrender.com` (o URL do Render).
-3. O `vercel.json` trata das rotas da SPA e dos cabeçalhos de segurança.
+1. Entra em **https://dashboard.render.com** com a conta do GitHub.
+2. Carrega em **New → Blueprint**, escolhe o repositório `a-mesa` e depois **Apply**. Os campos opcionais (`SMTP_URL`, `CLOUDINARY_URL`) podem ficar vazios.
+3. Espera que os 3 serviços fiquem **Live**. Demora uns 5 a 10 minutos da primeira vez.
+4. Confirma os endereços. Se o Render tiver acrescentado letras aos nomes, acerta duas variáveis e faz **Manual Deploy**:
+   - `a-mesa-tasca-api` → `FRONTEND_URL` = endereço do site
+   - `a-mesa-tasca` → `VITE_API_URL` = endereço da API
+5. **Contas de teste:** são as mesmas (admin@tascadoze.pt e cozinha@tascadoze.pt), mas com **senhas aleatórias**. Vês os valores em `a-mesa-tasca-api` → **Environment** → `DEMO_SENHA_ADMIN` e `DEMO_SENHA_COZINHA`. Dá-as ao professor em privado e nunca as escrevas no GitHub.
 
-> O plano grátis do Render adormece ao fim de 15 min sem uso. Abre o site uns minutos antes da apresentação.
+O `JWT_SECRET` e as senhas são gerados pelo Render, por isso nenhum segredo fica no repositório. O https é automático, e o site tem os mesmos cabeçalhos de segurança do [client/vercel.json](client/vercel.json).
+
+> **Plano grátis:** a API adormece ao fim de 15 min sem uso, e o primeiro pedido a seguir demora cerca de 1 minuto. Abre o site uns minutos antes da apresentação. A base de dados grátis expira ao fim de cerca de 30 dias, e as fotos carregadas apagam-se a cada deploy (usa `CLOUDINARY_URL` para as guardar).
+>
+> O front-end também pode ir para o **Vercel** (Root Directory `client`, variável `VITE_API_URL`), que usa o [client/vercel.json](client/vercel.json).
 
 **Endereço público:** _(acrescentar aqui depois do deploy)_
 

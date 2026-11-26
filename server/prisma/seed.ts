@@ -67,8 +67,9 @@ async function main() {
   const utilizadores = producao
     ? []
     : [
-        { nome: 'Zé (Admin)', email: 'admin@tascadoze.pt', password: 'admin123', papel: 'admin' as const },
-        { nome: 'Cozinha', email: 'cozinha@tascadoze.pt', password: 'cozinha123', papel: 'cozinha' as const },
+        // Num site público, as senhas vêm de variáveis de ambiente (geradas pelo Render), nunca as conhecidas.
+        { nome: 'Zé (Admin)', email: 'admin@tascadoze.pt', password: process.env.DEMO_SENHA_ADMIN || 'admin123', papel: 'admin' as const },
+        { nome: 'Cozinha', email: 'cozinha@tascadoze.pt', password: process.env.DEMO_SENHA_COZINHA || 'cozinha123', papel: 'cozinha' as const },
       ];
   for (const u of utilizadores) {
     const passwordHash = await bcrypt.hash(u.password, 12);
@@ -150,8 +151,9 @@ async function main() {
   if (producao) {
     console.log('   Sem contas de demonstração (produção). Cria a primeira conta no site: fica admin.');
   } else {
-    console.log('   Admin:   admin@tascadoze.pt / admin123');
-    console.log('   Cozinha: cozinha@tascadoze.pt / cozinha123');
+    // Nunca escrever nos registos as senhas definidas por variáveis de ambiente
+    console.log(`   Admin:   admin@tascadoze.pt / ${process.env.DEMO_SENHA_ADMIN ? '(DEMO_SENHA_ADMIN)' : 'admin123'}`);
+    console.log(`   Cozinha: cozinha@tascadoze.pt / ${process.env.DEMO_SENHA_COZINHA ? '(DEMO_SENHA_COZINHA)' : 'cozinha123'}`);
   }
   for (const m of mesas) console.log(`   Mesa ${m.numero}: /mesa/${m.qrToken}`);
 }
