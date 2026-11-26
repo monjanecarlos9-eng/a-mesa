@@ -20,8 +20,9 @@ estatisticasRouter.get('/', async (_req, res) => {
   const seteDias = new Date(hoje);
   seteDias.setDate(seteDias.getDate() - 6);
 
-  const [resumoHoje, emCurso, ultimos, topPratos] = await Promise.all([
+  const [resumoHoje, pagoHoje, emCurso, ultimos, topPratos] = await Promise.all([
     prisma.pedido.aggregate({ where: { criadoEm: { gte: hoje } }, _sum: { total: true }, _count: true }),
+    prisma.pedido.aggregate({ where: { pagoEm: { gte: hoje } }, _sum: { total: true }, _count: true }),
     prisma.pedido.count({ where: { estado: { in: ['pendente', 'em_preparacao', 'pronto'] } } }),
     prisma.pedido.findMany({ where: { criadoEm: { gte: seteDias } }, select: { criadoEm: true, total: true } }),
     prisma.$queryRaw<{ id: number; nome: string; quantidade: number; receita: number }[]>`
@@ -58,6 +59,8 @@ estatisticasRouter.get('/', async (_req, res) => {
       pedidos: pedidosHoje,
       ticketMedio: pedidosHoje ? faturacaoHoje / pedidosHoje : 0,
       emCurso,
+      pagoOnline: Number(pagoHoje._sum.total ?? 0),
+      pedidosPagosOnline: pagoHoje._count,
     },
     ultimos7Dias: [...porDia.entries()].map(([dia, v]) => ({ dia, ...v, faturacao: Math.round(v.faturacao * 100) / 100 })),
     topPratos,

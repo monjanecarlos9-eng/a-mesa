@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../prisma';
 import { HttpError, idDe } from '../erros';
 import { soAdmin } from '../middleware/auth';
-import { serializarPrato } from '../serializar';
+import { ALERGENIOS, serializarPrato } from '../serializar';
 import { avisarMenuAtualizado } from '../socket';
 
 export const pratosRouter = Router();
@@ -20,17 +20,41 @@ const camposPrato = z.object({
     .min(0)
     .max(10000)
     .transform((v) => Math.round(v * 100) / 100),
+  // Só URLs https://, http:// ou imagens carregadas aqui (/uploads/…). Bloqueia javascript:, data:, etc.
   imagemUrl: z
     .string()
     .trim()
     .max(1000)
+    .refine((v) => v === '' || /^https?:\/\/[^\s]+$/i.test(v) || /^\/uploads\/[a-f0-9]+\.(jpg|png|webp|gif)$/.test(v), 'URL de imagem inválido')
     .nullish()
     .transform((v) => v || null),
   disponivel: z.boolean(),
+  // Tradução inglesa (opcional — se faltar, o menu em inglês mostra o texto português)
+  nomeEn: z
+    .string()
+    .trim()
+    .max(100)
+    .nullish()
+    .transform((v) => v || null),
+  descricaoEn: z
+    .string()
+    .trim()
+    .max(500)
+    .nullish()
+    .transform((v) => v || null),
+  vegetariano: z.boolean(),
+  semGluten: z.boolean(),
+  alergenios: z
+    .array(z.enum(ALERGENIOS))
+    .max(ALERGENIOS.length)
+    .transform((l) => [...new Set(l)]),
 });
 const criarPratoSchema = camposPrato.extend({
   descricao: camposPrato.shape.descricao.default(''),
   disponivel: camposPrato.shape.disponivel.default(true),
+  vegetariano: camposPrato.shape.vegetariano.default(false),
+  semGluten: camposPrato.shape.semGluten.default(false),
+  alergenios: camposPrato.shape.alergenios.default([]),
 });
 const atualizarPratoSchema = camposPrato.partial();
 

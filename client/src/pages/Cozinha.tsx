@@ -9,6 +9,8 @@ import { ESTADOS, indiceEstado, type Estado, type Pedido } from '../tipos';
 import { Logo } from '../components/Logo';
 import { BotaoTema } from '../components/BotaoTema';
 import { useAvisos } from '../components/Aviso';
+import { Modal } from '../components/Modal';
+import { MudarSenha } from './AdminEquipa';
 
 const MAX_ENTREGUES = 12;
 
@@ -35,6 +37,7 @@ export default function Cozinha() {
   const [novos, setNovos] = useState<Set<number>>(new Set());
   const [chamadas, setChamadas] = useState<Chamada[]>([]);
   const [agora, setAgora] = useState(Date.now());
+  const [contaAberta, setContaAberta] = useState(false);
   const somRef = useRef(false);
   somRef.current = somAtivo;
 
@@ -50,7 +53,16 @@ export default function Cozinha() {
       setLigado(true);
       carregar(); // ressincroniza depois de uma quebra de ligação
     });
-    socket.on('disconnect', () => setLigado(false));
+    socket.on('disconnect', (motivo) => {
+      setLigado(false);
+      // O servidor cortou a ligação de propósito (conta suspensa, papel ou senha alterados).
+      // Confirma a sessão: se já não for válida, a api() termina a sessão e volta ao login.
+      if (motivo === 'io server disconnect') {
+        api('/auth/eu')
+          .then(() => socket.connect())
+          .catch(() => {});
+      }
+    });
     socket.on('novo_pedido', (p: Pedido) => {
       setPedidos((lista) => (lista.some((x) => x.id === p.id) ? lista : [...lista, p]));
       setNovos((s) => new Set(s).add(p.id));
@@ -115,6 +127,9 @@ export default function Cozinha() {
                 Admin
               </Link>
             )}
+            <button className="botao-secundario py-1.5!" onClick={() => setContaAberta(true)} title="Mudar a palavra-passe">
+              👤 {utilizador?.nome}
+            </button>
             <BotaoTema />
             <button
               className="botao-secundario py-1.5!"
@@ -164,6 +179,16 @@ export default function Cozinha() {
           );
         })}
       </main>
+
+      <Modal aberto={contaAberta} aoFechar={() => setContaAberta(false)} titulo="A minha conta">
+        <MudarSenha
+          aoErro={(m) => mostrar(m, 'erro')}
+          aoSucesso={() => {
+            setContaAberta(false);
+            mostrar('Palavra-passe alterada. As outras sessões foram terminadas.', 'sucesso', 5000);
+          }}
+        />
+      </Modal>
     </div>
   );
 }
@@ -188,6 +213,7 @@ function CartaoPedido({ pedido: p, novo, agora, aoMudar }: { pedido: Pedido; nov
       <p className={`text-xs ${atrasado ? 'font-bold text-red-600' : 'text-stone-500'}`}>
         {formatarHora(p.criadoEm)} · {haQuantoTempo(p.criadoEm, agora)}
         {novo && <span className="ml-2 rounded bg-amber-400 px-1.5 font-bold text-amber-950">NOVO</span>}
+        {p.pagoEm && <span className="ml-2 rounded bg-emerald-100 px-1.5 font-bold text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">💳 PAGO</span>}
       </p>
 
       <ul className="my-2.5 space-y-1">

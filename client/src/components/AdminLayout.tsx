@@ -3,11 +3,13 @@ import { NavLink, useNavigate } from 'react-router';
 import { useAuth } from '../lib/auth';
 import { BotaoTema } from './BotaoTema';
 import { Logo } from './Logo';
+import { Rodape } from './Rodape';
 
 const LIGACOES = [
   { para: '/admin/pratos', rotulo: 'Menu' },
   { para: '/admin/mesas', rotulo: 'Mesas e QR' },
   { para: '/admin/estatisticas', rotulo: 'Vendas' },
+  { para: '/admin/equipa', rotulo: 'Equipa' },
   { para: '/cozinha', rotulo: 'Cozinha ↗' },
 ];
 
@@ -57,6 +59,7 @@ export function AdminLayout({ titulo, acoes, children }: { titulo: string; acoes
         </div>
         {children}
       </main>
+      <Rodape />
     </div>
   );
 }

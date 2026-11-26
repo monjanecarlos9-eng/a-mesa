@@ -10,6 +10,12 @@ categoriasRouter.use(soAdmin);
 
 const categoriaSchema = z.object({
   nome: z.string().trim().min(1, 'obrigatório').max(60),
+  nomeEn: z
+    .string()
+    .trim()
+    .max(60)
+    .nullish()
+    .transform((v) => v || null),
   ordem: z.number().int().min(0).max(1000).optional(),
 });
 
@@ -25,7 +31,7 @@ categoriasRouter.post('/', async (req, res) => {
   const dados = categoriaSchema.parse(req.body);
   const ultima = await prisma.categoria.aggregate({ _max: { ordem: true } });
   const categoria = await prisma.categoria.create({
-    data: { nome: dados.nome, ordem: dados.ordem ?? (ultima._max.ordem ?? -1) + 1 },
+    data: { nome: dados.nome, nomeEn: dados.nomeEn, ordem: dados.ordem ?? (ultima._max.ordem ?? -1) + 1 },
   });
   avisarMenuAtualizado();
   res.status(201).json(categoria);

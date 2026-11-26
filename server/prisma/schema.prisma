@@ -12,6 +12,11 @@ enum Papel {
   cozinha
 }
 
+enum MetodoPagamento {
+  mbway
+  cartao
+}
+
 enum EstadoPedido {
   pendente
   em_preparacao
@@ -20,18 +25,50 @@ enum EstadoPedido {
 }
 
 model Utilizador {
-  id           Int    @id @default(autoincrement())
+  id           Int                @id @default(autoincrement())
   nome         String
-  email        String @unique
-  passwordHash String @map("password_hash")
+  email        String             @unique
+  passwordHash String             @map("password_hash")
   papel        Papel
+  /// Contas criadas pelo registo público ficam pendentes até o admin as aprovar.
+  aprovado     Boolean            @default(true)
+  /// Incrementa ao mudar a senha: invalida todas as sessões (JWT) anteriores.
+  sessaoVersao Int                @default(0) @map("sessao_versao")
+  criadoEm     DateTime           @default(now()) @map("criado_em")
+  recuperacoes RecuperacaoSenha[]
 
   @@map("utilizadores")
+}
+
+model RecuperacaoSenha {
+  id           Int        @id @default(autoincrement())
+  utilizadorId Int        @map("utilizador_id")
+  utilizador   Utilizador @relation(fields: [utilizadorId], references: [id], onDelete: Cascade)
+  /// Guardamos só o hash SHA-256 do token; o token em si só existe no link enviado.
+  tokenHash    String     @unique @map("token_hash")
+  expiraEm     DateTime   @map("expira_em")
+  usadoEm      DateTime?  @map("usado_em")
+  criadoEm     DateTime   @default(now()) @map("criado_em")
+
+  @@index([utilizadorId])
+  @@map("recuperacoes_senha")
+}
+
+/// Tokens (JWT) de quem fez "Terminar sessão": deixam de ser aceites mesmo antes de expirarem.
+/// Cada linha é apagada depois de o token expirar, por isso a tabela fica sempre pequena.
+model SessaoTerminada {
+  /// Identificador único do token (campo "jti" do JWT).
+  jti      String   @id
+  expiraEm DateTime @map("expira_em")
+
+  @@index([expiraEm])
+  @@map("sessoes_terminadas")
 }
 
 model Categoria {
   id     Int     @id @default(autoincrement())
   nome   String
+  nomeEn String? @map("nome_en")
   ordem  Int     @default(0)
   pratos Prato[]
 
@@ -44,6 +81,12 @@ model Prato {
   categoria   Categoria    @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
   nome        String
   descricao   String       @default("")
+  nomeEn      String?      @map("nome_en")
+  descricaoEn String?      @map("descricao_en")
+  vegetariano Boolean      @default(false)
+  semGluten   Boolean      @default(false) @map("sem_gluten")
+  /// Códigos dos 14 alergénios da UE (ex.: "gluten", "leite", "ovos").
+  alergenios  String[]     @default([])
   preco       Decimal      @db.Decimal(10, 2)
   imagemUrl   String?      @map("imagem_url")
   disponivel  Boolean      @default(true)
@@ -63,13 +106,16 @@ model Mesa {
 }
 
 model Pedido {
-  id       Int          @id @default(autoincrement())
-  mesaId   Int          @map("mesa_id")
-  mesa     Mesa         @relation(fields: [mesaId], references: [id], onDelete: Restrict)
-  estado   EstadoPedido @default(pendente)
-  total    Decimal      @db.Decimal(10, 2)
-  criadoEm DateTime     @default(now()) @map("criado_em")
-  itens    ItemPedido[]
+  id              Int              @id @default(autoincrement())
+  mesaId          Int              @map("mesa_id")
+  mesa            Mesa             @relation(fields: [mesaId], references: [id], onDelete: Restrict)
+  estado          EstadoPedido     @default(pendente)
+  total           Decimal          @db.Decimal(10, 2)
+  criadoEm        DateTime         @default(now()) @map("criado_em")
+  /// Pagamento simulado: só se guarda o método e a hora. Nunca dados de cartão.
+  metodoPagamento MetodoPagamento? @map("metodo_pagamento")
+  pagoEm          DateTime?        @map("pago_em")
+  itens           ItemPedido[]
 
   @@index([estado])
   @@index([criadoEm])

@@ -18,6 +18,22 @@ const EXTENSOES: Record<string, string> = {
   'image/gif': '.gif',
 };
 
+function assinaturaValida(b: Buffer, tipo: string): boolean {
+  const comeca = (...bytes: number[]) => bytes.every((v, i) => b[i] === v);
+  switch (tipo) {
+    case 'image/jpeg':
+      return comeca(0xff, 0xd8, 0xff);
+    case 'image/png':
+      return comeca(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+    case 'image/gif':
+      return b.subarray(0, 6).toString('ascii').startsWith('GIF8');
+    case 'image/webp':
+      return b.subarray(0, 4).toString('ascii') === 'RIFF' && b.subarray(8, 12).toString('ascii') === 'WEBP';
+    default:
+      return false;
+  }
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -37,6 +53,10 @@ export const uploadRouter = Router();
 uploadRouter.post('/', soAdmin, upload.single('imagem'), async (req, res) => {
   const ficheiro = req.file;
   if (!ficheiro) throw new HttpError(400, 'Nenhuma imagem enviada (campo "imagem").');
+  // O tipo indicado pelo browser pode ser falsificado: confirma pelos primeiros bytes do ficheiro.
+  if (!assinaturaValida(ficheiro.buffer, ficheiro.mimetype)) {
+    throw new HttpError(400, 'O ficheiro não é uma imagem válida.');
+  }
 
   if (env.CLOUDINARY_URL) {
     const resultado = await new Promise<{ secure_url: string }>((resolve, reject) => {

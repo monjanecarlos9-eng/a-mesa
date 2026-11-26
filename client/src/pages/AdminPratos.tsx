@@ -6,6 +6,7 @@ import { AdminLayout } from '../components/AdminLayout';
 import { ImagemPrato } from '../components/ImagemPrato';
 import { Modal } from '../components/Modal';
 import { useAvisos } from '../components/Aviso';
+import { ALERGENIOS } from '../lib/idioma';
 
 export default function AdminPratos() {
   const { mostrar, elemento: avisos } = useAvisos();
@@ -99,6 +100,12 @@ export default function AdminPratos() {
                       <div className="min-w-0 flex-1">
                         <p className={`font-semibold ${p.disponivel ? '' : 'text-stone-400'}`}>{p.nome}</p>
                         <p className="truncate text-sm text-stone-500">{p.descricao || '—'}</p>
+                        <p className="text-xs text-stone-500">
+                          {p.vegetariano && '🌱 '}
+                          {p.semGluten && '🌾 s/ glúten '}
+                          {p.alergenios.map((a) => ALERGENIOS[a]?.emoji).join('')}
+                          {!p.nomeEn && <span className="ml-1 text-amber-600">· sem tradução EN</span>}
+                        </p>
                       </div>
                       <span className="w-20 text-right font-semibold tabular-nums">{formatarPreco(p.preco)}</span>
                       <label className="flex cursor-pointer items-center gap-2 text-sm" title="Disponível / esgotado">
@@ -150,6 +157,11 @@ function FormPrato({ prato, categorias, aoGuardar, aoErro }: { prato: Prato | nu
   const [categoriaId, setCategoriaId] = useState(prato?.categoriaId ?? categorias[0]?.id ?? 0);
   const [imagemUrl, setImagemUrl] = useState(prato?.imagemUrl ?? '');
   const [disponivel, setDisponivel] = useState(prato?.disponivel ?? true);
+  const [nomeEn, setNomeEn] = useState(prato?.nomeEn ?? '');
+  const [descricaoEn, setDescricaoEn] = useState(prato?.descricaoEn ?? '');
+  const [vegetariano, setVegetariano] = useState(prato?.vegetariano ?? false);
+  const [semGluten, setSemGluten] = useState(prato?.semGluten ?? false);
+  const [alergenios, setAlergenios] = useState<string[]>(prato?.alergenios ?? []);
   const [aEnviarImagem, setAEnviarImagem] = useState(false);
   const [aGuardar, setAGuardar] = useState(false);
 
@@ -173,7 +185,19 @@ function FormPrato({ prato, categorias, aoGuardar, aoErro }: { prato: Prato | nu
     if (!Number.isFinite(valor) || valor < 0) return aoErro('Preço inválido');
     setAGuardar(true);
     try {
-      const json = { nome, descricao, preco: valor, categoriaId, imagemUrl: imagemUrl || null, disponivel };
+      const json = {
+        nome,
+        descricao,
+        preco: valor,
+        categoriaId,
+        imagemUrl: imagemUrl || null,
+        disponivel,
+        nomeEn: nomeEn || null,
+        descricaoEn: descricaoEn || null,
+        vegetariano,
+        semGluten,
+        alergenios,
+      };
       if (prato) await api(`/pratos/${prato.id}`, { method: 'PUT', json });
       else await api('/pratos', { method: 'POST', json });
       aoGuardar();
@@ -239,6 +263,47 @@ function FormPrato({ prato, categorias, aoGuardar, aoErro }: { prato: Prato | nu
         </div>
       </div>
 
+      <details className="rounded-xl border border-stone-200 p-3 dark:border-stone-700" open={!!(nomeEn || descricaoEn)}>
+        <summary className="cursor-pointer text-sm font-medium">🇬🇧 Tradução inglesa {nomeEn ? '✓' : '(opcional)'}</summary>
+        <div className="mt-3 space-y-3">
+          <input className="campo" placeholder="Name in English" maxLength={100} value={nomeEn} onChange={(e) => setNomeEn(e.target.value)} />
+          <textarea className="campo resize-none" rows={2} placeholder="Description in English" maxLength={500} value={descricaoEn} onChange={(e) => setDescricaoEn(e.target.value)} />
+          <p className="text-xs text-stone-500">Se ficar vazio, o menu em inglês mostra o texto em português.</p>
+        </div>
+      </details>
+
+      <div>
+        <span className="text-sm font-medium">Dieta</span>
+        <div className="mt-1 flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={vegetariano} onChange={(e) => setVegetariano(e.target.checked)} className="h-4 w-4 accent-emerald-600" />
+            🌱 Vegetariano
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={semGluten} onChange={(e) => setSemGluten(e.target.checked)} className="h-4 w-4 accent-amber-600" />
+            🌾 Sem glúten
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <span className="text-sm font-medium">Alergénios</span>
+        <div className="mt-1 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {Object.entries(ALERGENIOS).map(([codigo, a]) => (
+            <label key={codigo} className="flex items-center gap-1.5 text-sm">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-red-600"
+                checked={alergenios.includes(codigo)}
+                onChange={() => setAlergenios((l) => (l.includes(codigo) ? l.filter((x) => x !== codigo) : [...l, codigo]))}
+              />
+              {a.emoji} {a.pt}
+            </label>
+          ))}
+        </div>
+        {semGluten && alergenios.includes('gluten') && <p className="mt-1 text-xs font-semibold text-red-600">⚠ Marcado como "sem glúten" mas com o alergénio glúten.</p>}
+      </div>
+
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={disponivel} onChange={(e) => setDisponivel(e.target.checked)} className="h-4 w-4 accent-tasca-700" />
         Disponível (desmarca para "esgotado")
@@ -253,7 +318,7 @@ function FormPrato({ prato, categorias, aoGuardar, aoErro }: { prato: Prato | nu
 
 function GerirCategorias({ categorias, aoMudar, aoErro }: { categorias: Categoria[]; aoMudar: () => Promise<unknown>; aoErro: (m: string) => void }) {
   const [nova, setNova] = useState('');
-  const [aEditar, setAEditar] = useState<{ id: number; nome: string } | null>(null);
+  const [aEditar, setAEditar] = useState<{ id: number; nome: string; nomeEn: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
   async function executar(fn: () => Promise<unknown>) {
@@ -289,10 +354,11 @@ function GerirCategorias({ categorias, aoMudar, aoErro }: { categorias: Categori
                 className="flex flex-1 gap-2"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  executar(() => api(`/categorias/${c.id}`, { method: 'PUT', json: { nome: aEditar.nome } })).then(() => setAEditar(null));
+                  executar(() => api(`/categorias/${c.id}`, { method: 'PUT', json: { nome: aEditar.nome, nomeEn: aEditar.nomeEn || null } })).then(() => setAEditar(null));
                 }}
               >
-                <input autoFocus className="campo py-1.5!" value={aEditar.nome} onChange={(e) => setAEditar({ id: c.id, nome: e.target.value })} />
+                <input autoFocus className="campo py-1.5!" aria-label="Nome" value={aEditar.nome} onChange={(e) => setAEditar({ ...aEditar, nome: e.target.value })} />
+                <input className="campo py-1.5!" placeholder="🇬🇧 English" aria-label="Nome em inglês" value={aEditar.nomeEn} onChange={(e) => setAEditar({ ...aEditar, nomeEn: e.target.value })} />
                 <button className="botao-primario py-1.5!" disabled={ocupado}>
                   OK
                 </button>
@@ -313,7 +379,7 @@ function GerirCategorias({ categorias, aoMudar, aoErro }: { categorias: Categori
                 >
                   ↓
                 </button>
-                <button onClick={() => setAEditar({ id: c.id, nome: c.nome })} className="rounded p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Renomear">
+                <button onClick={() => setAEditar({ id: c.id, nome: c.nome, nomeEn: c.nomeEn ?? '' })} className="rounded p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Renomear">
                   ✏️
                 </button>
                 <button

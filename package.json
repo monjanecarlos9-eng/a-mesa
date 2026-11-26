@@ -1,0 +1,31 @@
+{
+  "name": "a-mesa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "À Mesa — pedidos por QR code (Tasca do Zé)",
+  "author": "Carlos",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "scripts": {
+    "setup": "npm install && npm install --prefix server && npm install --prefix client",
+    "dev": "node dev.mjs",
+    "build": "npm run build --prefix server && npm run build --prefix client",
+    "db:local": "node scripts/db-local.mjs",
+    "test": "node testes/executar.mjs && npm test --prefix client",
+    "lint": "eslint .",
+    "test:backend": "node testes/executar.mjs",
+    "test:frontend": "npm test --prefix client"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "embedded-postgres": "^19.0.0-beta.20",
+    "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "typescript": "~5.9",
+    "typescript-eslint": "^8.74.0"
+  },
+  "allowScripts": {
+    "@embedded-postgres/windows-x64@19.0.0-beta.20": true
+  }
+}

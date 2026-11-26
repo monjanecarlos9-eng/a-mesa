@@ -52,6 +52,16 @@ export const tratarErros: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(400).json({ erro: 'JSON inválido' });
     return;
   }
+  if (err?.type === 'entity.too.large') {
+    res.status(413).json({ erro: 'Pedido demasiado grande.' });
+    return;
+  }
+  // Outros erros "do cliente" do Express / body-parser (ex.: codificação inválida): sem stack trace no registo.
+  const estado = Number(err?.status ?? err?.statusCode);
+  if (estado >= 400 && estado < 500) {
+    res.status(estado).json({ erro: 'Pedido inválido.' });
+    return;
+  }
   console.error(err);
   res.status(500).json({ erro: 'Erro interno do servidor' });
 };

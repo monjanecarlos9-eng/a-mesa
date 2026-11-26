@@ -13,6 +13,6 @@ menuRouter.get('/', async (_req, res) => {
   res.json(
     categorias
       .filter((c) => c.pratos.length > 0)
-      .map((c) => ({ id: c.id, nome: c.nome, ordem: c.ordem, pratos: c.pratos.map(serializarPrato) })),
+      .map((c) => ({ id: c.id, nome: c.nome, nomeEn: c.nomeEn, ordem: c.ordem, pratos: c.pratos.map(serializarPrato) })),
   );
 });

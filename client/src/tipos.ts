@@ -9,11 +9,17 @@ export interface Prato {
   preco: number;
   imagemUrl: string | null;
   disponivel: boolean;
+  nomeEn: string | null;
+  descricaoEn: string | null;
+  vegetariano: boolean;
+  semGluten: boolean;
+  alergenios: string[];
 }
 
 export interface Categoria {
   id: number;
   nome: string;
+  nomeEn?: string | null;
   ordem: number;
   totalPratos?: number;
 }
@@ -32,6 +38,7 @@ export interface ItemPedido {
   id: number;
   pratoId: number;
   nome: string;
+  nomeEn: string | null;
   quantidade: number;
   precoUnitario: number;
   observacoes: string | null;
@@ -43,6 +50,8 @@ export interface Pedido {
   estado: Estado;
   total: number;
   criadoEm: string;
+  metodoPagamento: 'mbway' | 'cartao' | null;
+  pagoEm: string | null;
   itens: ItemPedido[];
 }
 

@@ -1,9 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../lib/auth';
 import { mensagemErro } from '../lib/api';
-import { Logo } from '../components/Logo';
-import { BotaoTema } from '../components/BotaoTema';
+import { CartaoConta, Campo, MensagemErro } from './Conta';
 
 export default function Login() {
   const { utilizador, entrar } = useAuth();
@@ -14,7 +13,12 @@ export default function Login() {
   const [erro, setErro] = useState<string | null>(null);
   const [aEntrar, setAEntrar] = useState(false);
 
-  const destino = (papel: string) => (local.state as { de?: string } | null)?.de ?? (papel === 'admin' ? '/admin/pratos' : '/cozinha');
+  const destino = (papel: string) => {
+    const de = (local.state as { de?: string } | null)?.de;
+    // Só aceita caminhos internos (evita redirecionar para outro site)
+    const seguro = de && de.startsWith('/') && !de.startsWith('//') ? de : null;
+    return seguro ?? (papel === 'admin' ? '/admin/pratos' : '/cozinha');
+  };
 
   if (utilizador) return <Navigate to={destino(utilizador.papel)} replace />;
 
@@ -33,41 +37,34 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="absolute right-3 top-3">
-        <BotaoTema />
-      </div>
-      <form onSubmit={submeter} className="cartao w-full max-w-sm p-6">
-        <div className="mb-6 flex justify-center">
-          <Logo />
+    <CartaoConta titulo="Entrada da equipa" subtitulo="Cozinha e administração">
+      <form onSubmit={submeter}>
+        <Campo id="email" rotulo="Email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Campo id="password" rotulo="Palavra-passe" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        <div className="-mt-2 mb-4 text-right">
+          <Link to="/recuperar-senha" className="text-sm text-tasca-700 underline-offset-4 hover:underline dark:text-tasca-300">
+            Esqueci-me da palavra-passe
+          </Link>
         </div>
-        <h1 className="mb-1 text-center text-lg font-semibold">Entrada da equipa</h1>
-        <p className="mb-6 text-center text-sm text-stone-500">Cozinha e administração</p>
-
-        <label className="block text-sm font-medium" htmlFor="email">
-          Email
-        </label>
-        <input id="email" type="email" autoComplete="username" required className="campo mb-4 mt-1" value={email} onChange={(e) => setEmail(e.target.value)} />
-
-        <label className="block text-sm font-medium" htmlFor="password">
-          Palavra-passe
-        </label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          className="campo mb-4 mt-1"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        {erro && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{erro}</p>}
-
+        <MensagemErro texto={erro} />
         <button type="submit" disabled={aEntrar} className="botao-primario w-full py-3!">
           {aEntrar ? 'A entrar…' : 'Entrar'}
         </button>
       </form>
-    </div>
+
+      <p className="mt-5 text-center text-sm text-stone-500">
+        Ainda não tens conta?{' '}
+        <Link to="/registar" className="font-medium text-tasca-700 underline-offset-4 hover:underline dark:text-tasca-300">
+          Criar conta
+        </Link>
+      </p>
+
+      <div className="mt-5 border-t border-stone-200 pt-5 dark:border-stone-800">
+        <Link to="/menu" className="botao-secundario w-full">
+          👀 Ver como convidado
+        </Link>
+        <p className="mt-2 text-center text-xs text-stone-500">Consultar o menu sem entrar</p>
+      </div>
+    </CartaoConta>
   );
 }

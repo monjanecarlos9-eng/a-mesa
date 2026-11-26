@@ -5,6 +5,7 @@ import { prisma } from '../prisma';
 import { HttpError, idDe } from '../erros';
 import { soAdmin } from '../middleware/auth';
 import { obterIo } from '../socket';
+import { limites } from '../seguranca';
 
 export const mesasRouter = Router();
 
@@ -27,9 +28,9 @@ const ultimaChamada = new Map<number, number>();
 const INTERVALO_CHAMADA_MS = 30_000;
 
 /** Botão "Chamar empregado". Limitado a uma chamada a cada 30 s por mesa. */
-mesasRouter.post('/:token/chamar', async (req, res) => {
+mesasRouter.post('/:token/chamar', limites.chamar, async (req, res) => {
   const mesa = await prisma.mesa.findUnique({
-    where: { qrToken: req.params.token },
+    where: { qrToken: String(req.params.token) },
     select: { id: true, numero: true },
   });
   if (!mesa) throw new HttpError(404, 'Mesa não encontrada.');

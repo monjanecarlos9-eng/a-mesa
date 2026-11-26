@@ -1,0 +1,29 @@
+À Mesa — Sistema de pedidos por QR code
+Copyright © 2026 Carlos. Todos os direitos reservados.
+
+Este software, incluindo o código-fonte, a documentação, o design das páginas, os textos,
+o nome "À Mesa" e o logótipo, é obra original do autor e está protegido pelo Código do Direito
+de Autor e dos Direitos Conexos (Portugal) e pelas convenções internacionais aplicáveis.
+
+SEM AUTORIZAÇÃO PRÉVIA E ESCRITA DO AUTOR, É PROIBIDO:
+  - copiar, reproduzir ou publicar o todo ou parte deste software;
+  - modificar, adaptar, traduzir ou criar obras derivadas;
+  - distribuir, vender, alugar, sublicenciar ou disponibilizar a terceiros;
+  - usar este software, ou partes dele, para fins comerciais;
+  - apresentar este trabalho, ou partes dele, como sendo de outra autoria.
+
+EXCEÇÃO — AVALIAÇÃO ACADÉMICA
+  Os docentes e membros do júri responsáveis pela avaliação deste projeto podem instalá-lo,
+  executá-lo e analisá-lo exclusivamente para efeitos dessa avaliação. Esta permissão não
+  inclui a cópia, a redistribuição nem a reutilização noutros trabalhos.
+
+COMPONENTES DE TERCEIROS
+  Este software usa bibliotecas de código aberto (por exemplo React, Express, Prisma,
+  Socket.IO e Tailwind CSS), que continuam sujeitas às suas próprias licenças, indicadas
+  em cada pacote. Esta licença aplica-se apenas ao trabalho original do autor.
+
+O restaurante "Tasca do Zé" e o respetivo menu são fictícios e servem apenas de demonstração.
+
+O SOFTWARE É FORNECIDO "TAL COMO ESTÁ", SEM GARANTIAS DE QUALQUER TIPO.
+
+Pedidos de autorização: contactar o autor.

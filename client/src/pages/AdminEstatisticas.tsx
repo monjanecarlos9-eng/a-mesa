@@ -4,12 +4,16 @@ import { formatarPreco } from '../lib/formatar';
 import { AdminLayout } from '../components/AdminLayout';
 
 interface Estatisticas {
-  hoje: { faturacao: number; pedidos: number; ticketMedio: number; emCurso: number };
+  hoje: { faturacao: number; pedidos: number; ticketMedio: number; emCurso: number; pagoOnline: number; pedidosPagosOnline: number };
   ultimos7Dias: { dia: string; faturacao: number; pedidos: number }[];
   topPratos: { id: number; nome: string; quantidade: number; receita: number }[];
 }
 
-const nomeDia = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric' });
+/** "Dom 22" — curto para caber por baixo da barra, mesmo no telemóvel. */
+function nomeDia(iso: string): string {
+  const data = new Date(`${iso}T12:00:00`);
+  return `${data.toLocaleDateString('pt-PT', { weekday: 'long' }).slice(0, 3)} ${data.getDate()}`;
+}
 
 export default function AdminEstatisticas() {
   const [dados, setDados] = useState<Estatisticas | null>(null);
@@ -34,11 +38,12 @@ export default function AdminEstatisticas() {
       {!dados && !erro && <p className="text-stone-500">A carregar…</p>}
       {dados && (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Indicador rotulo="Faturação hoje" valor={formatarPreco(dados.hoje.faturacao)} destaque />
             <Indicador rotulo="Pedidos hoje" valor={String(dados.hoje.pedidos)} />
             <Indicador rotulo="Valor médio por pedido" valor={formatarPreco(dados.hoje.ticketMedio)} />
             <Indicador rotulo="Pedidos em curso" valor={String(dados.hoje.emCurso)} />
+            <Indicador rotulo={`Pago no telemóvel (${dados.hoje.pedidosPagosOnline})`} valor={formatarPreco(dados.hoje.pagoOnline)} />
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -49,7 +54,7 @@ export default function AdminEstatisticas() {
                   <div key={d.dia} className="flex h-full flex-1 flex-col items-center justify-end gap-1" title={`${d.pedidos} pedidos`}>
                     <span className="text-[11px] tabular-nums text-stone-500">{Math.round(d.faturacao)} €</span>
                     <div className="w-full max-w-12 rounded-t-md bg-tasca-600 transition-all dark:bg-tasca-500" style={{ height: `${(d.faturacao / maxDia) * 80}%`, minHeight: 2 }} />
-                    <span className="text-xs capitalize text-stone-500">{nomeDia(d.dia)}</span>
+                    <span className="whitespace-nowrap text-xs capitalize text-stone-500">{nomeDia(d.dia)}</span>
                   </div>
                 ))}
               </div>

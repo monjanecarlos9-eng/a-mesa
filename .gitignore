@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 .env.local
+server/.pgdata/
 server/uploads/*
 !server/uploads/.gitkeep
 *.log

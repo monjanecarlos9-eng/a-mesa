@@ -21,13 +21,21 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      # Código para criar a 1.ª conta (admin). Vê o valor em Environment depois do deploy.
+      - key: CODIGO_CONFIGURACAO
+        generateValue: true
       - key: NODE_ENV
         value: production
       - key: TZ
         value: Europe/Lisbon
-      # URL do front-end no Vercel (ex.: https://tasca-do-ze.vercel.app)
+      # URL do front-end no Vercel (ex.: https://tasca-do-ze.vercel.app) — obrigatório
       - key: FRONTEND_URL
         sync: false
+      # Email para a recuperação de senha (ex.: smtps://utilizador:senha-de-app@smtp.gmail.com:465)
+      - key: SMTP_URL
+        sync: false
+      - key: EMAIL_REMETENTE
+        value: Tasca do Zé <no-reply@tascadoze.pt>
       # Opcional, mas recomendado: o disco do Render apaga-se a cada deploy
       - key: CLOUDINARY_URL
         sync: false

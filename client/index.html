@@ -6,15 +6,10 @@
     <meta name="theme-color" content="#9a3a1d" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <title>Tasca do Zé · À Mesa</title>
-    <script>
-      // Aplica o modo escuro antes de pintar a página (evita o "flash" branco)
-      try {
-        var t = localStorage.getItem('tema');
-        if (t === 'escuro' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) {
-          document.documentElement.classList.add('dark');
-        }
-      } catch (e) {}
-    </script>
+    <meta name="author" content="Carlos" />
+    <meta name="copyright" content="© 2026 Carlos. Todos os direitos reservados." />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <script src="/tema.js"></script>
   </head>
   <body>
     <div id="root"></div>

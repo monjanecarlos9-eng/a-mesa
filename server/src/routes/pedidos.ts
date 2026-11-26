@@ -6,13 +6,14 @@ import { HttpError, idDe } from '../erros';
 import { equipa } from '../middleware/auth';
 import { incluirPedido, serializarPedido } from '../serializar';
 import { obterIo } from '../socket';
+import { limites } from '../seguranca';
 
 export const pedidosRouter = Router();
 
 const ESTADOS = Object.values(EstadoPedido);
 
 const criarSchema = z.object({
-  token: z.string().min(1),
+  token: z.string().min(1).max(100),
   itens: z
     .array(
       z.object({
@@ -26,7 +27,7 @@ const criarSchema = z.object({
 });
 
 /** Cliente cria um pedido. Os preços vêm SEMPRE da base de dados, nunca do cliente. */
-pedidosRouter.post('/', async (req, res) => {
+pedidosRouter.post('/', limites.pedidos, async (req, res) => {
   const dados = criarSchema.parse(req.body);
 
   const mesa = await prisma.mesa.findUnique({ where: { qrToken: dados.token } });
@@ -90,6 +91,30 @@ pedidosRouter.get('/:id', async (req, res) => {
   });
   if (!pedido) throw new HttpError(404, 'Pedido não encontrado.');
   res.json(serializarPedido(pedido));
+});
+
+/**
+ * Pagamento SIMULADO (MB Way ou cartão). Não há nenhum processador real por trás:
+ * o servidor só regista o método e a hora — nunca recebe nem guarda números de cartão.
+ */
+pedidosRouter.post('/:id/pagar', limites.pedidos, async (req, res) => {
+  const { token, metodo } = z
+    .object({ token: z.string().min(1).max(100), metodo: z.enum(['mbway', 'cartao']) })
+    .strict() // rejeita campos extra (ex.: alguém a tentar enviar dados de cartão)
+    .parse(req.body);
+  const id = idDe(req.params.id);
+  const existente = await prisma.pedido.findFirst({ where: { id, mesa: { qrToken: token } }, select: { pagoEm: true } });
+  if (!existente) throw new HttpError(404, 'Pedido não encontrado.');
+  if (existente.pagoEm) throw new HttpError(409, 'Este pedido já está pago.');
+
+  const pedido = await prisma.pedido.update({
+    where: { id },
+    data: { metodoPagamento: metodo, pagoEm: new Date() },
+    include: incluirPedido,
+  });
+  const resposta = serializarPedido(pedido);
+  obterIo().to('equipa').to(`pedido:${pedido.id}`).emit('estado_atualizado', resposta);
+  res.json(resposta);
 });
 
 /** Cozinha muda o estado → avisa a cozinha e o cliente desse pedido. */
